@@ -15,7 +15,7 @@ from app.models.base import Base
 
 class SellerAccount(Base):
 
-    __tablename__ = "seller-accounts"
+    __tablename__ = "seller_accounts"
 
     # ==========================================
     # ID
@@ -32,7 +32,7 @@ class SellerAccount(Base):
 
     seller_id: Mapped[int] = mapped_column(
         ForeignKey(
-            "seller-auth.id",
+            "seller_auth.id",
             ondelete="CASCADE",
         ),
         nullable=False,

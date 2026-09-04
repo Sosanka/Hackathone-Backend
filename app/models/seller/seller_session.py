@@ -34,7 +34,7 @@ class SellerSession(Base):
 
     seller_id: Mapped[int] = mapped_column(
         ForeignKey(
-            "seller-auth.id",
+            "seller_auth.id",
             ondelete="CASCADE",
         ),
         nullable=False,

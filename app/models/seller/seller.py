@@ -16,7 +16,7 @@ from app.models.base import Base
 
 class Seller(Base):
 
-    __tablename__ = "seller-auth"
+    __tablename__ = "seller_auth"
     # ==========================================
     # ID
     # ==========================================

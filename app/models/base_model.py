@@ -6,6 +6,7 @@ from app.models.seller.seller import Seller
 from app.models.seller.seller_otp import SellerEmailOTP
 from app.models.seller.seller_session import SellerSession
 from app.models.seller.account.seller_account import SellerAccount
+from app.models.seller.account.store import SellerStore
 
 
 # ============================================================
@@ -27,6 +28,7 @@ __all__ = [
     "SellerEmailOTP",
     "SellerSession",
     "SellerAccount",
+    "SellerStore",
 
     # Buyer
     "Buyer",

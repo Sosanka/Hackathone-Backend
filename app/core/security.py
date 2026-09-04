@@ -2,23 +2,33 @@ import hashlib
 import secrets
 
 from authx import AuthX, AuthXConfig
-from pwdlib import PasswordHash
+from passlib.context import CryptContext
+from passlib.exc import UnknownHashError
 
 from app.core.config import settings
 
 
-# ==================================================
+# ============================================================
 # PASSWORD HASHING
-# ==================================================
+# ============================================================
 
-password_hasher = PasswordHash.recommended()
+pwd_context = CryptContext(
+    schemes=[
+        "bcrypt",
+        "argon2",
+        "pbkdf2_sha256",
+    ],
+    deprecated="auto",
+)
 
 
 def hash_password(password: str) -> str:
     """
-    Hash password using Argon2.
+    Hash a new password.
+
+    New passwords use bcrypt.
     """
-    return password_hasher.hash(password)
+    return pwd_context.hash(password)
 
 
 def verify_password(
@@ -26,60 +36,69 @@ def verify_password(
     password_hash: str,
 ) -> bool:
     """
-    Verify password against Argon2 hash.
+    Verify a password safely.
+
+    Returns False instead of crashing when the database
+    contains an unsupported/invalid password hash.
     """
-    return password_hasher.verify(
-        password,
-        password_hash,
-    )
+
+    if not password_hash:
+        return False
+
+    try:
+        return pwd_context.verify(
+            password,
+            password_hash,
+        )
+
+    except UnknownHashError:
+        return False
+
+    except ValueError:
+        return False
 
 
-# ==================================================
-# AUTHX
-# ==================================================
-
-config = AuthXConfig(
-    JWT_SECRET_KEY=settings.JWT_SECRET_KEY,
-
-    JWT_TOKEN_LOCATION=[
-        "headers"
-    ],
-
-    JWT_ALGORITHM="HS256",
-
-    JWT_ACCESS_TOKEN_EXPIRES=(
-        settings.JWT_ACCESS_TOKEN_EXPIRES
-    ),
-)
-
-
-security = AuthX(
-    config=config
-)
-
-
-# ==================================================
-# TOKEN HASH
-# ==================================================
+# ============================================================
+# TOKEN HASHING
+# ============================================================
 
 def hash_token(token: str) -> str:
-    """
-    SHA-256 hash for storing JWT/session
-    identifiers safely in database.
-    """
-
     return hashlib.sha256(
         token.encode("utf-8")
     ).hexdigest()
 
 
-# ==================================================
+# ============================================================
 # OTP
-# ==================================================
+# ============================================================
 
-def generate_otp() -> str:
-    """
-    Generate cryptographically secure 6 digit OTP.
-    """
+def generate_otp(
+    length: int = 6,
+) -> str:
 
-    return f"{secrets.randbelow(1_000_000):06d}"
+    if length < 4:
+        raise ValueError(
+            "OTP length must be at least 4."
+        )
+
+    return "".join(
+        secrets.choice("0123456789")
+        for _ in range(length)
+    )
+
+
+# ============================================================
+# AUTHX
+# ============================================================
+
+config = AuthXConfig()
+
+config.JWT_SECRET_KEY = settings.JWT_SECRET_KEY
+
+config.JWT_TOKEN_LOCATION = [
+    "headers"
+]
+
+security = AuthX(
+    config=config
+)

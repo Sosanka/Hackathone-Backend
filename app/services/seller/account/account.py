@@ -7,8 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.seller.seller import Seller
-from app.models.seller.account import SellerAccount
-from app.models.seller.store import SellerStore
+from app.models.seller.account.seller_account import SellerAccount
+from app.models.seller.account.store import SellerStore
 
 from app.schemas.seller.account.request import (
     SellerAccountCreateRequest,
