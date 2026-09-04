@@ -7,7 +7,13 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import settings
+
+# Base definition
 from app.models.base import Base
+
+# Import all models so they are registered
+# in Base.metadata
+from app.models import base_model  # noqa: F401
 
 
 # Alembic Config object
