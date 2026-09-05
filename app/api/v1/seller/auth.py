@@ -1034,3 +1034,5 @@ async def seller_logout(
         await db.commit()
 
     return None
+
+
