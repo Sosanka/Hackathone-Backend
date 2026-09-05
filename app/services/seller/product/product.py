@@ -8,12 +8,12 @@ from app.models.seller.product.product import SellerProduct
 
 from app.schemas.seller.product.request import (
     ProductCreateSchema,
-)
-
-from app.schemas.seller.product.update import (
     ProductUpdateSchema,
 )
 
+from app.schemas.seller.product.stock import (
+    StockAdjustmentSchema,
+)
 from app.schemas.seller.product.stock import (
     StockAdjustmentSchema,
 )

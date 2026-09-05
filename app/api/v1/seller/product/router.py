@@ -15,19 +15,24 @@ from app.core.database import get_db
 
 from app.schemas.seller.product.request import (
     ProductCreateSchema,
-)
-from app.schemas.seller.product.response import (
-    ProductResponseSchema,
-)
-from app.schemas.seller.product.update import (
     ProductUpdateSchema,
 )
 
+from app.schemas.seller.product.response import (
+    ProductResponseSchema,
+)
+
+from app.schemas.seller.product.stock import (
+    StockAdjustmentSchema,
+)
+
 from app.services.seller.product.product import (
+    add_stock,
     create_product,
     delete_product,
     get_product_by_id,
     get_seller_products,
+    subtract_stock,
     update_product,
 )
 
@@ -43,7 +48,7 @@ router = APIRouter(
 
 
 # ============================================================
-# CREATE PRODUCT / ADD STOCK
+# CREATE PRODUCT / ADD NEW STOCK ENTRY
 # ============================================================
 
 @router.post(
@@ -115,58 +120,33 @@ async def create_seller_product(
     seller=Depends(get_current_seller),
 ):
     """
-    Add a product/stock entry.
+    Create a new product/stock entry.
 
-    If the same seller already has the same product,
-    the new quantity is added to that product's
-    total_quantity automatically.
+    total_quantity is calculated automatically
+    by the backend.
     """
-
-    # --------------------------------------------------------
-    # VALIDATE REQUEST DATA
-    # --------------------------------------------------------
 
     data = ProductCreateSchema(
         product_name=product_name.strip(),
-
         description=description,
-
         category=category,
-
         quantity=quantity,
-
         unit=unit,
-
         price_per_unit=price_per_unit,
-
         location_name=location_name,
-
         address=address,
-
         latitude=latitude,
-
         longitude=longitude,
-
         harvest_date=harvest_date,
-
         best_before_date=best_before_date,
     )
 
-    # --------------------------------------------------------
-    # CREATE
-    # --------------------------------------------------------
-
-    product = await create_product(
+    return await create_product(
         db=db,
-
         seller_id=seller.id,
-
         data=data,
-
         image=image,
     )
-
-    return product
 
 
 # ============================================================
@@ -179,20 +159,15 @@ async def create_seller_product(
 )
 async def get_products(
     db: AsyncSession = Depends(get_db),
-
     seller=Depends(get_current_seller),
 ):
     """
     Return all product/stock entries belonging
     to the logged-in seller.
-
-    total_quantity is calculated for each
-    same-product group.
     """
 
     return await get_seller_products(
         db=db,
-
         seller_id=seller.id,
     )
 
@@ -207,27 +182,22 @@ async def get_products(
 )
 async def get_product(
     product_id: int,
-
     db: AsyncSession = Depends(get_db),
-
     seller=Depends(get_current_seller),
 ):
     """
-    Return a product/stock entry only if it belongs
-    to the logged-in seller.
+    Return a single product/stock entry.
     """
 
     return await get_product_by_id(
         db=db,
-
         seller_id=seller.id,
-
         product_id=product_id,
     )
 
 
 # ============================================================
-# UPDATE PRODUCT / STOCK
+# UPDATE PRODUCT / STOCK ENTRY
 # ============================================================
 
 @router.put(
@@ -236,34 +206,81 @@ async def get_product(
 )
 async def edit_product(
     product_id: int,
-
     data: ProductUpdateSchema,
-
     db: AsyncSession = Depends(get_db),
-
     seller=Depends(get_current_seller),
 ):
     """
     Update a product/stock entry.
 
-    If quantity changes, the total quantity
-    for the same product is automatically
-    recalculated.
+    If quantity, product name, or unit changes,
+    total_quantity is recalculated automatically.
     """
 
     return await update_product(
         db=db,
-
         seller_id=seller.id,
-
         product_id=product_id,
-
         data=data,
     )
 
 
 # ============================================================
-# DELETE PRODUCT / STOCK
+# ADD STOCK
+# ============================================================
+
+@router.post(
+    "/{product_id}/stock/add",
+    response_model=ProductResponseSchema,
+)
+async def increase_stock(
+    product_id: int,
+    data: StockAdjustmentSchema,
+    db: AsyncSession = Depends(get_db),
+    seller=Depends(get_current_seller),
+):
+    """
+    Add stock to this specific stock entry.
+    """
+
+    return await add_stock(
+        db=db,
+        seller_id=seller.id,
+        product_id=product_id,
+        data=data,
+    )
+
+
+# ============================================================
+# SUBTRACT STOCK
+# ============================================================
+
+@router.post(
+    "/{product_id}/stock/subtract",
+    response_model=ProductResponseSchema,
+)
+async def decrease_stock(
+    product_id: int,
+    data: StockAdjustmentSchema,
+    db: AsyncSession = Depends(get_db),
+    seller=Depends(get_current_seller),
+):
+    """
+    Subtract stock from this specific stock entry.
+
+    Stock cannot become negative.
+    """
+
+    return await subtract_stock(
+        db=db,
+        seller_id=seller.id,
+        product_id=product_id,
+        data=data,
+    )
+
+
+# ============================================================
+# DELETE PRODUCT / STOCK ENTRY
 # ============================================================
 
 @router.delete(
@@ -272,24 +289,19 @@ async def edit_product(
 )
 async def remove_product(
     product_id: int,
-
     db: AsyncSession = Depends(get_db),
-
     seller=Depends(get_current_seller),
 ):
     """
     Delete a product/stock entry.
 
-    After deletion, the total quantity for
-    the remaining same-product entries is
-    automatically recalculated.
+    After deletion, total_quantity for the
+    remaining matching entries is recalculated.
     """
 
     await delete_product(
         db=db,
-
         seller_id=seller.id,
-
         product_id=product_id,
     )
 
