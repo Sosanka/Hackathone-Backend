@@ -13,6 +13,11 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     debug=settings.DEBUG,
+
+    # Explicit Swagger/OpenAPI configuration
+    openapi_url="/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 
@@ -25,9 +30,6 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:5174",
-
-        # ADD YOUR FRONTEND VERCEL URL HERE
-        # "https://your-frontend.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -40,6 +42,27 @@ app.add_middleware(
 # ============================================================
 
 app.include_router(v1_router)
+
+
+# ============================================================
+# DEBUG ROUTES
+# ============================================================
+
+print("\n")
+print("=" * 70)
+print("REGISTERED API ROUTES")
+print("=" * 70)
+
+for route in app.routes:
+    path = getattr(route, "path", "")
+
+    if path.startswith("/api/v1"):
+        print(
+            f"{getattr(route, 'methods', set())}  {path}"
+        )
+
+print("=" * 70)
+print("\n")
 
 
 # ============================================================

@@ -557,7 +557,7 @@ async def verify_buyer_otp(
         now
         + timedelta(
             seconds=(
-                settings.JWT_ACCESS_TOKEN_EXPIRES
+                settings.JWT_ACCESS_TOKEN_EXPIRES_SECONDS
             )
         )
     )
@@ -836,7 +836,7 @@ async def buyer_login(
         now
         + timedelta(
             seconds=(
-                settings.JWT_ACCESS_TOKEN_EXPIRES
+                settings.JWT_ACCESS_TOKEN_EXPIRES_SECONDS
             )
         )
     )

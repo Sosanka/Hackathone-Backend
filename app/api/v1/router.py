@@ -11,6 +11,14 @@ from app.api.v1.seller.product.router import (
 )
 
 from app.api.v1.buyer.auth import router as buyer_auth_router
+from app.api.v1.buyer.product.public_router import (
+    router as public_product_router,
+)
+
+
+from app.api.v1.buyer.order.router import (
+    router as buyer_order_router,
+)
 
 
 router = APIRouter(
@@ -60,4 +68,15 @@ router.include_router(
 
 router.include_router(
     buyer_auth_router,
+)
+
+
+router.include_router(
+    public_product_router,
+)
+
+
+router.include_router(
+    buyer_order_router,
+    prefix="/buyer",
 )
