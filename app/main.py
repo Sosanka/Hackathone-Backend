@@ -73,9 +73,9 @@ app.include_router(v1_router)
 # FAVICON
 # ============================================================
 
-@app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
-    return Response(status_code=204)
+# @app.get("/favicon.ico", include_in_schema=False)
+# async def favicon():
+#     return Response(status_code=204)
 
 
 # ============================================================
