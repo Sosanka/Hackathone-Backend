@@ -528,7 +528,7 @@ async def verify_seller_otp(
     expires_at = (
         now
         + timedelta(
-            seconds=settings.JWT_ACCESS_TOKEN_EXPIRES
+            seconds=settings.JWT_ACCESS_TOKEN_EXPIRES_SECONDS
         )
     )
 
@@ -864,7 +864,7 @@ async def seller_login(
 
         + timedelta(
             seconds=(
-                settings.JWT_ACCESS_TOKEN_EXPIRES
+                settings.JWT_ACCESS_TOKEN_EXPIRES_SECONDS
             )
         )
 
