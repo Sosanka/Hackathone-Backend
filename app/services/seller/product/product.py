@@ -14,6 +14,10 @@ from app.schemas.seller.product.update import (
     ProductUpdateSchema,
 )
 
+from app.schemas.seller.product.stock import (
+    StockAdjustmentSchema,
+)
+
 from app.services.seller.product.image import (
     delete_product_image,
     save_product_image,
@@ -22,19 +26,6 @@ from app.services.seller.product.image import (
 
 # ============================================================
 # CALCULATE TOTAL QUANTITY
-# ============================================================
-#
-# Calculates total quantity of the same product
-# belonging to the same seller and using the same unit.
-#
-# Example:
-#
-# Tomato 20 kg
-# Tomato 30 kg
-# Tomato 50 kg
-#
-# total = 100 kg
-#
 # ============================================================
 
 async def calculate_total_quantity(
@@ -56,8 +47,7 @@ async def calculate_total_quantity(
 
             func.lower(
                 SellerProduct.product_name
-            )
-            == product_name.lower(),
+            ) == product_name.lower(),
 
             SellerProduct.unit == unit,
 
@@ -72,11 +62,6 @@ async def calculate_total_quantity(
 
 # ============================================================
 # UPDATE TOTAL QUANTITY FOR SAME PRODUCT
-# ============================================================
-#
-# After adding, updating or deleting a product entry,
-# update total_quantity on every matching row.
-#
 # ============================================================
 
 async def update_product_totals(
@@ -100,8 +85,7 @@ async def update_product_totals(
 
             func.lower(
                 SellerProduct.product_name
-            )
-            == product_name.lower(),
+            ) == product_name.lower(),
 
             SellerProduct.unit == unit,
 
@@ -113,11 +97,24 @@ async def update_product_totals(
 
     for product in products:
 
+        # ----------------------------------------------------
+        # Update group total quantity
+        # ----------------------------------------------------
+
         product.total_quantity = total_quantity
 
-        # Total value of all available stock
+        # ----------------------------------------------------
+        # Keep total_price for THIS entry
+        # ----------------------------------------------------
+        #
+        # total_price = this row's quantity
+        #               × this row's price
+        #
+        # Do NOT use total_quantity here.
+        # ----------------------------------------------------
+
         product.total_price = (
-            total_quantity
+            product.quantity
             * product.price_per_unit
         )
 
@@ -125,7 +122,7 @@ async def update_product_totals(
 
 
 # ============================================================
-# CREATE PRODUCT / ADD STOCK
+# CREATE PRODUCT / ADD NEW STOCK ENTRY
 # ============================================================
 
 async def create_product(
@@ -142,9 +139,7 @@ async def create_product(
     # --------------------------------------------------------
 
     if image:
-        image_url = await save_product_image(
-            image
-        )
+        image_url = await save_product_image(image)
 
     # --------------------------------------------------------
     # CREATE PRODUCT ENTRY
@@ -161,16 +156,17 @@ async def create_product(
 
         image_url=image_url,
 
-        # Quantity entered for this entry
+        # Quantity for this entry
         quantity=data.quantity,
 
-        # Initially this is the only stock
+        # Initially only this entry exists
         total_quantity=data.quantity,
 
         unit=data.unit,
 
         price_per_unit=data.price_per_unit,
 
+        # Price for this entry
         total_price=(
             data.quantity
             * data.price_per_unit
@@ -196,22 +192,19 @@ async def create_product(
     try:
 
         # ----------------------------------------------------
-        # INSERT FIRST
+        # INSERT
         # ----------------------------------------------------
 
         await db.flush()
 
         # ----------------------------------------------------
-        # CALCULATE TOTAL OF SAME PRODUCT
+        # RECALCULATE SAME PRODUCT TOTAL
         # ----------------------------------------------------
 
         await update_product_totals(
             db=db,
-
             seller_id=seller_id,
-
             product_name=data.product_name,
-
             unit=data.unit,
         )
 
@@ -228,9 +221,7 @@ async def create_product(
         await db.rollback()
 
         if image_url:
-            delete_product_image(
-                image_url
-            )
+            delete_product_image(image_url)
 
         raise
 
@@ -309,32 +300,19 @@ async def update_product(
 
     product = await get_product_by_id(
         db=db,
-
         seller_id=seller_id,
-
         product_id=product_id,
     )
 
     # --------------------------------------------------------
     # SAVE OLD GROUP
     # --------------------------------------------------------
-    #
-    # Important if product_name or unit is changed.
-    #
-    # Example:
-    #
-    # Tomato -> Potato
-    #
-    # We must recalculate both groups.
-    #
-    # --------------------------------------------------------
 
     old_product_name = product.product_name
-
     old_unit = product.unit
 
     # --------------------------------------------------------
-    # UPDATE ONLY PROVIDED FIELDS
+    # UPDATE PROVIDED FIELDS ONLY
     # --------------------------------------------------------
 
     update_data = data.model_dump(
@@ -349,33 +327,199 @@ async def update_product(
             value,
         )
 
+    # --------------------------------------------------------
+    # RECALCULATE THIS ENTRY PRICE
+    # --------------------------------------------------------
+
+    product.total_price = (
+        product.quantity
+        * product.price_per_unit
+    )
+
+    # --------------------------------------------------------
+    # FLUSH
+    # --------------------------------------------------------
+
     await db.flush()
 
     # --------------------------------------------------------
-    # RECALCULATE OLD PRODUCT GROUP
+    # RECALCULATE OLD GROUP
     # --------------------------------------------------------
 
     await update_product_totals(
         db=db,
-
         seller_id=seller_id,
-
         product_name=old_product_name,
-
         unit=old_unit,
     )
 
     # --------------------------------------------------------
-    # RECALCULATE NEW PRODUCT GROUP
+    # RECALCULATE NEW GROUP
     # --------------------------------------------------------
 
     await update_product_totals(
         db=db,
-
         seller_id=seller_id,
-
         product_name=product.product_name,
+        unit=product.unit,
+    )
 
+    # --------------------------------------------------------
+    # COMMIT
+    # --------------------------------------------------------
+
+    await db.commit()
+
+    await db.refresh(product)
+
+    return product
+
+
+# ============================================================
+# ADD STOCK
+# ============================================================
+
+async def add_stock(
+    db: AsyncSession,
+    seller_id: int,
+    product_id: int,
+    data: StockAdjustmentSchema,
+) -> SellerProduct:
+
+    # --------------------------------------------------------
+    # GET PRODUCT
+    # --------------------------------------------------------
+
+    product = await get_product_by_id(
+        db=db,
+        seller_id=seller_id,
+        product_id=product_id,
+    )
+
+    # --------------------------------------------------------
+    # ADD QUANTITY
+    # --------------------------------------------------------
+
+    product.quantity += data.quantity
+
+    # --------------------------------------------------------
+    # ACTIVATE PRODUCT
+    # --------------------------------------------------------
+
+    product.status = "active"
+
+    # --------------------------------------------------------
+    # UPDATE ENTRY PRICE
+    # --------------------------------------------------------
+
+    product.total_price = (
+        product.quantity
+        * product.price_per_unit
+    )
+
+    # --------------------------------------------------------
+    # FLUSH
+    # --------------------------------------------------------
+
+    await db.flush()
+
+    # --------------------------------------------------------
+    # RECALCULATE TOTAL
+    # --------------------------------------------------------
+
+    await update_product_totals(
+        db=db,
+        seller_id=seller_id,
+        product_name=product.product_name,
+        unit=product.unit,
+    )
+
+    # --------------------------------------------------------
+    # COMMIT
+    # --------------------------------------------------------
+
+    await db.commit()
+
+    await db.refresh(product)
+
+    return product
+
+
+# ============================================================
+# SUBTRACT STOCK
+# ============================================================
+
+async def subtract_stock(
+    db: AsyncSession,
+    seller_id: int,
+    product_id: int,
+    data: StockAdjustmentSchema,
+) -> SellerProduct:
+
+    # --------------------------------------------------------
+    # GET PRODUCT
+    # --------------------------------------------------------
+
+    product = await get_product_by_id(
+        db=db,
+        seller_id=seller_id,
+        product_id=product_id,
+    )
+
+    # --------------------------------------------------------
+    # CHECK AVAILABLE STOCK
+    # --------------------------------------------------------
+
+    if data.quantity > product.quantity:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Cannot subtract {data.quantity} "
+                f"{product.unit}. "
+                f"Available stock is "
+                f"{product.quantity} "
+                f"{product.unit}."
+            ),
+        )
+
+    # --------------------------------------------------------
+    # SUBTRACT QUANTITY
+    # --------------------------------------------------------
+
+    product.quantity -= data.quantity
+
+    # --------------------------------------------------------
+    # UPDATE ENTRY PRICE
+    # --------------------------------------------------------
+
+    product.total_price = (
+        product.quantity
+        * product.price_per_unit
+    )
+
+    # --------------------------------------------------------
+    # ZERO STOCK
+    # --------------------------------------------------------
+
+    if product.quantity == 0:
+
+        product.status = "out_of_stock"
+
+    # --------------------------------------------------------
+    # FLUSH
+    # --------------------------------------------------------
+
+    await db.flush()
+
+    # --------------------------------------------------------
+    # RECALCULATE TOTAL
+    # --------------------------------------------------------
+
+    await update_product_totals(
+        db=db,
+        seller_id=seller_id,
+        product_name=product.product_name,
         unit=product.unit,
     )
 
@@ -406,9 +550,7 @@ async def delete_product(
 
     product = await get_product_by_id(
         db=db,
-
         seller_id=seller_id,
-
         product_id=product_id,
     )
 
@@ -436,11 +578,8 @@ async def delete_product(
 
     await update_product_totals(
         db=db,
-
         seller_id=seller_id,
-
         product_name=product_name,
-
         unit=unit,
     )
 
@@ -456,6 +595,4 @@ async def delete_product(
 
     if image_url:
 
-        delete_product_image(
-            image_url
-        )
+        delete_product_image(image_url)
