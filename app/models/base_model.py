@@ -20,6 +20,7 @@ from app.models.buyer.buyer import Buyer
 from app.models.buyer.buyer_otp import BuyerEmailOTP
 from app.models.buyer.buyer_session import BuyerSession
 from app.models.buyer.order import BuyerOrder
+from app.models.buyer.buyer_saved_item import BuyerSavedItem
 
 # ============================================================
 # PUBLIC MODELS
@@ -40,4 +41,5 @@ __all__ = [
     "BuyerEmailOTP",
     "BuyerSession",
     "BuyerOrder",
+    "BuyerSavedItem",
 ]

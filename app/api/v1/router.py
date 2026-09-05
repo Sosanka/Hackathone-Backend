@@ -15,6 +15,7 @@ from app.api.v1.buyer.product.public_router import (
     router as public_product_router,
 )
 
+from app.api.v1.buyer.save_items import router as buyer_saved_items_router
 
 from app.api.v1.buyer.order.router import (
     router as buyer_order_router,
@@ -41,6 +42,10 @@ router.include_router(
 
 router.include_router(
     seller_auth_router,
+)
+
+router.include_router(
+    seller_product_router,
 )
 
 
