@@ -6,7 +6,6 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
-    Integer,
     Numeric,
     String,
     Text,
@@ -40,7 +39,10 @@ class SellerProduct(Base):
     # ==========================================================
 
     seller_id: Mapped[int] = mapped_column(
-        ForeignKey("seller_auth.id", ondelete="CASCADE"),
+        ForeignKey(
+            "seller_auth.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
         index=True,
     )
@@ -79,10 +81,46 @@ class SellerProduct(Base):
     # QUANTITY
     # ==========================================================
 
+    # Quantity for THIS particular product/stock entry.
+    #
+    # Example:
+    #
+    # Tomato #1 -> 20
+    # Tomato #2 -> 30
+    # Tomato #3 -> 50
+    #
+    # Each row has its own quantity.
+
     quantity: Mapped[Decimal] = mapped_column(
         Numeric(12, 3),
         nullable=False,
     )
+
+    # ==========================================================
+    # TOTAL QUANTITY
+    # ==========================================================
+
+    # Calculated total quantity for the SAME:
+    #
+    # seller + product_name + unit
+    #
+    # Example:
+    #
+    # Tomato 20
+    # Tomato 30
+    # Tomato 50
+    #
+    # total_quantity = 100
+
+    total_quantity: Mapped[Decimal] = mapped_column(
+        Numeric(14, 3),
+        nullable=False,
+        default=0,
+    )
+
+    # ==========================================================
+    # UNIT
+    # ==========================================================
 
     unit: Mapped[str] = mapped_column(
         String(10),

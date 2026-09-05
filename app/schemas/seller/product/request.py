@@ -22,6 +22,7 @@ class ProductCreateSchema(BaseModel):
         max_length=100,
     )
 
+    # Quantity for this particular entry
     quantity: Decimal = Field(
         ...,
         gt=0,

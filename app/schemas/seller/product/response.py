@@ -22,7 +22,11 @@ class ProductResponseSchema(BaseModel):
 
     image_url: str | None
 
+    # Quantity for this particular entry
     quantity: Decimal
+
+    # Total quantity of the same product
+    total_quantity: Decimal
 
     unit: str
 

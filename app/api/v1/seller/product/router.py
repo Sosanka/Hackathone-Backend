@@ -19,12 +19,16 @@ from app.schemas.seller.product.request import (
 from app.schemas.seller.product.response import (
     ProductResponseSchema,
 )
+from app.schemas.seller.product.update import (
+    ProductUpdateSchema,
+)
 
 from app.services.seller.product.product import (
     create_product,
     delete_product,
     get_product_by_id,
     get_seller_products,
+    update_product,
 )
 
 
@@ -39,14 +43,7 @@ router = APIRouter(
 
 
 # ============================================================
-# CREATE PRODUCT
-# ============================================================
-# LOGIN REQUIRED
-#
-# POST /api/v1/seller/products
-#
-# Seller must send:
-# Authorization: Bearer <seller_access_token>
+# CREATE PRODUCT / ADD STOCK
 # ============================================================
 
 @router.post(
@@ -114,17 +111,15 @@ async def create_seller_product(
     # --------------------------------------------------------
     # SELLER AUTHENTICATION
     # --------------------------------------------------------
-    # This makes login mandatory.
-    # seller.id comes from the authenticated seller JWT.
-    # Seller cannot send/change seller_id from frontend.
-    # --------------------------------------------------------
 
     seller=Depends(get_current_seller),
 ):
     """
-    Create a new product listing.
+    Add a product/stock entry.
 
-    Only authenticated sellers can create products.
+    If the same seller already has the same product,
+    the new quantity is added to that product's
+    total_quantity automatically.
     """
 
     # --------------------------------------------------------
@@ -158,9 +153,7 @@ async def create_seller_product(
     )
 
     # --------------------------------------------------------
-    # CREATE PRODUCT
-    # --------------------------------------------------------
-    # seller_id comes ONLY from authenticated seller.
+    # CREATE
     # --------------------------------------------------------
 
     product = await create_product(
@@ -177,12 +170,7 @@ async def create_seller_product(
 
 
 # ============================================================
-# GET ALL PRODUCTS OF LOGGED-IN SELLER
-# ============================================================
-#
-# GET /api/v1/seller/products
-#
-# LOGIN REQUIRED
+# GET ALL PRODUCTS
 # ============================================================
 
 @router.get(
@@ -195,7 +183,11 @@ async def get_products(
     seller=Depends(get_current_seller),
 ):
     """
-    Return only products belonging to the logged-in seller.
+    Return all product/stock entries belonging
+    to the logged-in seller.
+
+    total_quantity is calculated for each
+    same-product group.
     """
 
     return await get_seller_products(
@@ -206,12 +198,7 @@ async def get_products(
 
 
 # ============================================================
-# GET SINGLE PRODUCT
-# ============================================================
-#
-# GET /api/v1/seller/products/{product_id}
-#
-# LOGIN REQUIRED
+# GET SINGLE PRODUCT / STOCK ENTRY
 # ============================================================
 
 @router.get(
@@ -226,7 +213,8 @@ async def get_product(
     seller=Depends(get_current_seller),
 ):
     """
-    Return a product only if it belongs to the logged-in seller.
+    Return a product/stock entry only if it belongs
+    to the logged-in seller.
     """
 
     return await get_product_by_id(
@@ -239,12 +227,43 @@ async def get_product(
 
 
 # ============================================================
-# DELETE PRODUCT
+# UPDATE PRODUCT / STOCK
 # ============================================================
-#
-# DELETE /api/v1/seller/products/{product_id}
-#
-# LOGIN REQUIRED
+
+@router.put(
+    "/{product_id}",
+    response_model=ProductResponseSchema,
+)
+async def edit_product(
+    product_id: int,
+
+    data: ProductUpdateSchema,
+
+    db: AsyncSession = Depends(get_db),
+
+    seller=Depends(get_current_seller),
+):
+    """
+    Update a product/stock entry.
+
+    If quantity changes, the total quantity
+    for the same product is automatically
+    recalculated.
+    """
+
+    return await update_product(
+        db=db,
+
+        seller_id=seller.id,
+
+        product_id=product_id,
+
+        data=data,
+    )
+
+
+# ============================================================
+# DELETE PRODUCT / STOCK
 # ============================================================
 
 @router.delete(
@@ -259,7 +278,11 @@ async def remove_product(
     seller=Depends(get_current_seller),
 ):
     """
-    Delete a product belonging to the logged-in seller.
+    Delete a product/stock entry.
+
+    After deletion, the total quantity for
+    the remaining same-product entries is
+    automatically recalculated.
     """
 
     await delete_product(
