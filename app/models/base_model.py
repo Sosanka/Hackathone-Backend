@@ -7,7 +7,10 @@ from app.models.seller.seller_otp import SellerEmailOTP
 from app.models.seller.seller_session import SellerSession
 from app.models.seller.account.seller_account import SellerAccount
 from app.models.seller.account.store import SellerStore
-
+from app.models.seller.product.product import (
+    ProductUnit,
+    SellerProduct,
+)
 
 # ============================================================
 # BUYER MODELS
@@ -29,6 +32,8 @@ __all__ = [
     "SellerSession",
     "SellerAccount",
     "SellerStore",
+    "SellerProduct",
+    "ProductUnit",
 
     # Buyer
     "Buyer",

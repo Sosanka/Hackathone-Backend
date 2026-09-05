@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+from datetime import timedelta
 
 from authx import AuthX, AuthXConfig
 from passlib.context import CryptContext
@@ -91,14 +92,19 @@ def generate_otp(
 # AUTHX
 # ============================================================
 
-config = AuthXConfig()
+config = AuthXConfig(
+    JWT_SECRET_KEY=settings.JWT_SECRET_KEY,
 
-config.JWT_SECRET_KEY = settings.JWT_SECRET_KEY
+    JWT_TOKEN_LOCATION=[
+        "headers",
+    ],
 
-config.JWT_TOKEN_LOCATION = [
-    "headers"
-]
+    JWT_ACCESS_TOKEN_EXPIRES=timedelta(
+        seconds=settings.JWT_ACCESS_TOKEN_EXPIRES_SECONDS
+    ),
+)
+
 
 security = AuthX(
-    config=config
+    config=config,
 )

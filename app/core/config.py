@@ -28,25 +28,18 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str
 
     # ==========================================
-    # ADMIN
-    # ==========================================
-
-    # ADMIN_EMAIL: str
-    # ADMIN_PASSWORD: str
-
-    # ==========================================
     # JWT
     # ==========================================
-    JWT_ACCESS_TOKEN_EXPIRES: int = 60 * 60 * 24 * 30
+
+    # 30 days in seconds
+    JWT_ACCESS_TOKEN_EXPIRES_SECONDS: int = 60 * 60 * 24 * 30
 
     # ==========================================
     # SELLER OTP
     # ==========================================
 
     SELLER_OTP_EXPIRE_MINUTES: int = 10
-
     SELLER_OTP_MAX_ATTEMPTS: int = 5
-
     SELLER_OTP_RESEND_COOLDOWN_SECONDS: int = 60
 
     # ==========================================
@@ -61,14 +54,6 @@ class Settings(BaseSettings):
 
     MAIL_PORT: int = 587
     MAIL_SERVER: str = "smtp.gmail.com"
-
-    # ==========================================
-    # IMAGEKIT
-    # ==========================================
-
-    # IMAGEKIT_PUBLIC_KEY: str
-    # IMAGEKIT_PRIVATE_KEY: str
-    # IMAGEKIT_URL_ENDPOINT: str
 
     # ==========================================
     # PYDANTIC SETTINGS
