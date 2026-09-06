@@ -1,15 +1,18 @@
 from decimal import Decimal
 
 from fastapi import HTTPException
+
 from sqlalchemy import select
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.buyer.order import BuyerOrder
 from app.models.seller.product.product import SellerProduct
 
 from app.schemas.buyer.order.request import (
-    OrderCreateSchema,
+    CheckoutCreateSchema,
 )
+
 from app.schemas.buyer.order.response import (
     StockCheckResponse,
 )
@@ -25,10 +28,6 @@ async def check_product_stock(
     requested_quantity: Decimal,
 ) -> StockCheckResponse:
 
-    # ------------------------------------------------------
-    # GET ACTIVE PRODUCT
-    # ------------------------------------------------------
-
     result = await db.execute(
         select(SellerProduct)
         .where(
@@ -40,20 +39,18 @@ async def check_product_stock(
     product = result.scalar_one_or_none()
 
     if not product:
+
         raise HTTPException(
             status_code=404,
             detail="Product not found or no longer available",
         )
-
-    # ------------------------------------------------------
-    # CHECK STOCK
-    # ------------------------------------------------------
 
     available = (
         product.quantity >= requested_quantity
     )
 
     if not available:
+
         return StockCheckResponse(
             product_id=product.id,
             requested_quantity=requested_quantity,
@@ -66,10 +63,6 @@ async def check_product_stock(
                 f"{product.unit} available."
             ),
         )
-
-    # ------------------------------------------------------
-    # AVAILABLE
-    # ------------------------------------------------------
 
     return StockCheckResponse(
         product_id=product.id,
@@ -86,30 +79,14 @@ async def check_product_stock(
 
 
 # ==========================================================
-# CREATE ORDER
+# CREATE SINGLE ORDER
 # ==========================================================
 
 async def create_order(
     db: AsyncSession,
     buyer_id: int,
-    data: OrderCreateSchema,
+    data,
 ) -> BuyerOrder:
-
-    # ======================================================
-    # IMPORTANT
-    # ======================================================
-    #
-    # SELECT FOR UPDATE locks the product row.
-    #
-    # This prevents:
-    #
-    # Buyer A -> sees 10 kg
-    # Buyer B -> sees 10 kg
-    # Buyer A -> buys 8 kg
-    # Buyer B -> buys 8 kg
-    #
-    # Instead, requests are processed safely.
-    # ======================================================
 
     result = await db.execute(
         select(SellerProduct)
@@ -122,23 +99,12 @@ async def create_order(
 
     product = result.scalar_one_or_none()
 
-    # ------------------------------------------------------
-    # PRODUCT NOT FOUND
-    # ------------------------------------------------------
-
     if not product:
 
         raise HTTPException(
             status_code=404,
             detail="Product not found or no longer available",
         )
-
-    # ------------------------------------------------------
-    # FINAL STOCK CHECK
-    # ------------------------------------------------------
-    # Never trust the previous /stock request.
-    # Stock may have changed after that request.
-    # ------------------------------------------------------
 
     if product.quantity < data.quantity:
 
@@ -157,45 +123,24 @@ async def create_order(
             },
         )
 
-    # ======================================================
-    # CALCULATE PRICE
-    # ======================================================
-
     total_price = (
         data.quantity *
         product.price_per_unit
     )
-
-    # ======================================================
-    # DECREASE STOCK
-    # ======================================================
 
     product.quantity = (
         product.quantity -
         data.quantity
     )
 
-    # ------------------------------------------------------
-    # IF STOCK BECOMES ZERO
-    # ------------------------------------------------------
-
     if product.quantity == 0:
-
         product.status = "out_of_stock"
 
-    # ======================================================
-    # CREATE ORDER
-    # ======================================================
-
     order = BuyerOrder(
-
         buyer_id=buyer_id,
-
         product_id=product.id,
-
         seller_id=product.seller_id,
 
-        # Product snapshot
         product_name=product.product_name,
 
         quantity=data.quantity,
@@ -206,12 +151,10 @@ async def create_order(
 
         total_price=total_price,
 
-        # Customer
         customer_name=data.customer_name,
 
         customer_phone=data.customer_phone,
 
-        # Location
         location_name=data.location_name,
 
         delivery_address=data.delivery_address,
@@ -220,15 +163,10 @@ async def create_order(
 
         longitude=data.longitude,
 
-        # Status
         status="placed",
     )
 
     db.add(order)
-
-    # ======================================================
-    # COMMIT
-    # ======================================================
 
     try:
 
@@ -243,6 +181,249 @@ async def create_order(
         raise
 
     return order
+
+
+# ==========================================================
+# CHECKOUT ENTIRE CART
+# ==========================================================
+
+async def checkout_cart(
+    db: AsyncSession,
+    buyer_id: int,
+    data: CheckoutCreateSchema,
+):
+    """
+    Create orders for every item currently
+    present in the authenticated buyer's cart.
+
+    The backend calculates prices from the database.
+    """
+
+    # ======================================================
+    # IMPORT YOUR CART MODEL
+    # ======================================================
+
+    from app.models.buyer.buyer_saved_item import BuyerSavedItem
+
+    # ------------------------------------------------------
+    # IMPORTANT
+    #
+    # Replace BuyerSavedItem above with your actual
+    # cart model if your cart uses a different model.
+    # ------------------------------------------------------
+
+    result = await db.execute(
+        select(BuyerSavedItem)
+        .where(
+            BuyerSavedItem.buyer_id == buyer_id
+        )
+    )
+
+    cart_items = list(
+        result.scalars().all()
+    )
+
+    if not cart_items:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Your cart is empty",
+        )
+
+    # ======================================================
+    # PAYMENT
+    # ======================================================
+
+    if data.payment_method != "cod":
+
+        raise HTTPException(
+            status_code=400,
+            detail="Only Cash on Delivery is supported",
+        )
+
+    # ======================================================
+    # CREATE ORDERS
+    # ======================================================
+
+    created_orders = []
+
+    total_amount = Decimal("0")
+
+    try:
+
+        for cart_item in cart_items:
+
+            # --------------------------------------------------
+            # LOCK PRODUCT
+            # --------------------------------------------------
+
+            product_result = await db.execute(
+                select(SellerProduct)
+                .where(
+                    SellerProduct.id ==
+                    cart_item.product_id,
+
+                    SellerProduct.status == "active",
+                )
+                .with_for_update()
+            )
+
+            product = (
+                product_result
+                .scalar_one_or_none()
+            )
+
+            if not product:
+
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"Product "
+                        f"{cart_item.product_id} "
+                        f"is no longer available."
+                    ),
+                )
+
+            # --------------------------------------------------
+            # STOCK CHECK
+            # --------------------------------------------------
+
+            if product.quantity < cart_item.quantity:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "message": (
+                            f"Not enough stock for "
+                            f"{product.product_name}"
+                        ),
+                        "product_id": product.id,
+                        "requested_quantity": str(
+                            cart_item.quantity
+                        ),
+                        "available_quantity": str(
+                            product.quantity
+                        ),
+                        "unit": product.unit,
+                    },
+                )
+
+            # --------------------------------------------------
+            # CALCULATE PRICE FROM DATABASE
+            # --------------------------------------------------
+
+            item_total = (
+                cart_item.quantity *
+                product.price_per_unit
+            )
+
+            # --------------------------------------------------
+            # DECREASE STOCK
+            # --------------------------------------------------
+
+            product.quantity = (
+                product.quantity -
+                cart_item.quantity
+            )
+
+            if product.quantity == 0:
+
+                product.status = "out_of_stock"
+
+            # --------------------------------------------------
+            # CREATE ORDER
+            # --------------------------------------------------
+
+            order = BuyerOrder(
+
+                buyer_id=buyer_id,
+
+                product_id=product.id,
+
+                seller_id=product.seller_id,
+
+                product_name=product.product_name,
+
+                quantity=cart_item.quantity,
+
+                unit=product.unit,
+
+                price_per_unit=product.price_per_unit,
+
+                total_price=item_total,
+
+                customer_name=data.customer_name,
+
+                customer_phone=data.customer_phone,
+
+                location_name=data.location_name,
+
+                delivery_address=data.delivery_address,
+
+                latitude=data.latitude,
+
+                longitude=data.longitude,
+
+                status="placed",
+            )
+
+            db.add(order)
+
+            created_orders.append(order)
+
+            total_amount += item_total
+
+        # ==================================================
+        # FLUSH ORDERS
+        # ==================================================
+
+        await db.flush()
+
+        # ==================================================
+        # CLEAR CART
+        # ==================================================
+
+        for cart_item in cart_items:
+
+            await db.delete(cart_item)
+
+        # ==================================================
+        # COMMIT EVERYTHING TOGETHER
+        # ==================================================
+
+        await db.commit()
+
+        # ==================================================
+        # REFRESH ORDERS
+        # ==================================================
+
+        for order in created_orders:
+
+            await db.refresh(order)
+
+    except HTTPException:
+
+        await db.rollback()
+
+        raise
+
+    except Exception:
+
+        await db.rollback()
+
+        raise
+
+    return {
+        "success": True,
+        "payment_method": "cod",
+        "message": "Order placed successfully",
+        "order_ids": [
+            order.id
+            for order in created_orders
+        ],
+        "orders": created_orders,
+        "total_amount": total_amount,
+    }
 
 
 # ==========================================================

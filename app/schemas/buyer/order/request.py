@@ -7,6 +7,10 @@ from pydantic import (
 )
 
 
+# ==========================================================
+# STOCK CHECK REQUEST
+# ==========================================================
+
 class StockCheckRequest(BaseModel):
 
     quantity: Decimal = Field(
@@ -15,11 +19,11 @@ class StockCheckRequest(BaseModel):
     )
 
 
-class OrderCreateSchema(BaseModel):
+# ==========================================================
+# SINGLE PRODUCT ORDER
+# ==========================================================
 
-    # ==========================================================
-    # PRODUCT
-    # ==========================================================
+class OrderCreateSchema(BaseModel):
 
     product_id: int = Field(
         ...,
@@ -30,10 +34,6 @@ class OrderCreateSchema(BaseModel):
         ...,
         gt=0,
     )
-
-    # ==========================================================
-    # CUSTOMER
-    # ==========================================================
 
     customer_name: str = Field(
         ...,
@@ -46,10 +46,6 @@ class OrderCreateSchema(BaseModel):
         min_length=7,
         max_length=30,
     )
-
-    # ==========================================================
-    # LOCATION
-    # ==========================================================
 
     location_name: str | None = Field(
         default=None,
@@ -73,10 +69,6 @@ class OrderCreateSchema(BaseModel):
         ge=-180,
         le=180,
     )
-
-    # ==========================================================
-    # VALIDATORS
-    # ==========================================================
 
     @field_validator("customer_name")
     @classmethod
@@ -113,6 +105,112 @@ class OrderCreateSchema(BaseModel):
         if not value:
             raise ValueError(
                 "Delivery address is required"
+            )
+
+        return value
+
+
+# ==========================================================
+# CART CHECKOUT
+# ==========================================================
+
+class CheckoutCreateSchema(BaseModel):
+
+    customer_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=255,
+    )
+
+    customer_phone: str = Field(
+        ...,
+        min_length=7,
+        max_length=30,
+    )
+
+    location_name: str | None = Field(
+        default=None,
+        max_length=255,
+    )
+
+    delivery_address: str = Field(
+        ...,
+        min_length=5,
+        max_length=5000,
+    )
+
+    latitude: Decimal | None = Field(
+        default=None,
+        ge=-90,
+        le=90,
+    )
+
+    longitude: Decimal | None = Field(
+        default=None,
+        ge=-180,
+        le=180,
+    )
+
+    # ======================================================
+    # PAYMENT
+    # ======================================================
+
+    payment_method: str = Field(
+        default="cod",
+    )
+
+    # ======================================================
+    # VALIDATORS
+    # ======================================================
+
+    @field_validator("customer_name")
+    @classmethod
+    def clean_customer_name(cls, value: str) -> str:
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Customer name is required"
+            )
+
+        return value
+
+    @field_validator("customer_phone")
+    @classmethod
+    def clean_customer_phone(cls, value: str) -> str:
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Customer phone is required"
+            )
+
+        return value
+
+    @field_validator("delivery_address")
+    @classmethod
+    def clean_address(cls, value: str) -> str:
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Delivery address is required"
+            )
+
+        return value
+
+    @field_validator("payment_method")
+    @classmethod
+    def validate_payment_method(cls, value: str) -> str:
+
+        value = value.strip().lower()
+
+        if value != "cod":
+            raise ValueError(
+                "Only Cash on Delivery is currently supported"
             )
 
         return value

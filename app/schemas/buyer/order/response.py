@@ -60,3 +60,18 @@ class OrderResponseSchema(BaseModel):
     created_at: datetime
 
     updated_at: datetime
+
+
+class CheckoutResponseSchema(BaseModel):
+
+    success: bool
+
+    payment_method: str
+
+    message: str
+
+    order_ids: list[int]
+
+    orders: list[OrderResponseSchema]
+
+    total_amount: Decimal

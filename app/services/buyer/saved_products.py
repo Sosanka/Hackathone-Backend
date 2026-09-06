@@ -6,9 +6,6 @@ from app.models.buyer.buyer_saved_product import BuyerSavedProduct
 from app.models.seller.product.product import SellerProduct
 
 
-MAX_SAVED_PRODUCTS = 2
-
-
 async def get_saved_products(
     db: AsyncSession,
     buyer_id: int,
@@ -74,26 +71,7 @@ async def save_product(
     if existing:
         return existing, "Product is already saved."
 
-    # Get oldest saved product
-    saved_result = await db.execute(
-        select(BuyerSavedProduct)
-        .where(
-            BuyerSavedProduct.buyer_id == buyer_id
-        )
-        .order_by(
-            BuyerSavedProduct.created_at.asc()
-        )
-    )
-
-    saved_products = list(saved_result.scalars().all())
-
-    # Maximum = 2
-    if len(saved_products) >= MAX_SAVED_PRODUCTS:
-        oldest = saved_products[0]
-
-        await db.delete(oldest)
-        await db.flush()
-
+    # Save new product without capacity restrictions
     saved_product = BuyerSavedProduct(
         buyer_id=buyer_id,
         product_id=product_id,
