@@ -74,7 +74,7 @@ async def send_seller_otp_email(
         >
 
             <h2>
-                Welcome to Sewa Foundation
+                Welcome to AgriChoice
             </h2>
 
             <p>
@@ -129,7 +129,7 @@ async def send_seller_otp_email(
                     font-size: 12px;
                 "
             >
-                Sewa Foundation
+                AgriChoice
             </p>
 
         </div>
@@ -140,7 +140,7 @@ async def send_seller_otp_email(
     """
 
     message = MessageSchema(
-        subject="Verify your Sewa Foundation seller account",
+        subject="Verify your AgriChoice seller account",
 
         recipients=[
             email
@@ -196,7 +196,7 @@ async def send_buyer_otp_email(
         >
 
             <h2>
-                Welcome to Sewa Foundation
+                Welcome to AgriChoice
             </h2>
 
             <p>
@@ -251,7 +251,7 @@ async def send_buyer_otp_email(
                     font-size: 12px;
                 "
             >
-                Sewa Foundation
+                AgriChoice
             </p>
 
         </div>
@@ -262,7 +262,7 @@ async def send_buyer_otp_email(
     """
 
     message = MessageSchema(
-        subject="Verify your Sewa Foundation buyer account",
+        subject="Verify your AgriChoice buyer account",
 
         recipients=[
             email

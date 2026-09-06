@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # APPLICATION
     # ==========================================
 
-    APP_NAME: str = "Sewa Foundation API"
+    APP_NAME: str = "AgriChoice API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
 
@@ -58,11 +58,15 @@ class Settings(BaseSettings):
     MAIL_PASSWORD: str
     MAIL_FROM: str
 
-    MAIL_FROM_NAME: str = "Sewa Foundation"
+    MAIL_FROM_NAME: str = "AgriChoice"
 
     MAIL_PORT: int = 587
     MAIL_SERVER: str = "smtp.gmail.com"
 
+
+    BUYER_OTP_EXPIRE_MINUTES: int = 10
+    BUYER_OTP_MAX_ATTEMPTS: int = 5
+    BUYER_OTP_RESEND_COOLDOWN_SECONDS: int = 60
     # ==========================================
     # PYDANTIC SETTINGS
     # ==========================================
