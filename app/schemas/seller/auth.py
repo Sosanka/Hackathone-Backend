@@ -119,6 +119,12 @@ class SellerVerifyOTPResponse(BaseModel):
 
     message: str
 
+    access_token: str
+
+    token_type: str = "bearer"
+
+    expires_at: datetime
+
 
 # ==================================================
 # RESEND OTP

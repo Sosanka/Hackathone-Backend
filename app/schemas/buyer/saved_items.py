@@ -1,38 +1,51 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class SavedItemToggleResponse(BaseModel):
-
-    saved: bool
-
-    product_id: int
+class CartAddRequest(BaseModel):
+    product_id: int = Field(gt=0)
+    quantity: Decimal = Field(gt=0)
 
 
-class SavedItemOut(BaseModel):
+class CartUpdateRequest(BaseModel):
+    quantity: Decimal = Field(gt=0)
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
 
+class CartItemResponse(BaseModel):
     id: int
-
     product_id: int
-
-    created_at: datetime
 
     product_name: str
-
-    price_per_unit: float
-
-    unit: str
-
+    description: Optional[str] = None
+    category: Optional[str] = None
     image_url: Optional[str] = None
 
-    seller_name: Optional[str] = None
+    quantity: Decimal
+    unit: str
+    price_per_unit: Decimal
+
+    total_price: Decimal
 
     location_name: Optional[str] = None
 
-    is_active: Optional[bool] = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SavedItemOut(BaseModel):
+    id: int
+    buyer_id: int
+    product_id: int
+    quantity: Decimal
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SavedItemToggleResponse(BaseModel):
+    message: str
+    is_saved: bool
+    saved_item: Optional[SavedItemOut] = None
